@@ -1,179 +1,275 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>عيد ميلاد ملاك</title>
-<style>
-    /* الإعدادات الأساسية لضمان عدم وجود أي تشوه */
-    * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-    }
-
-    body, html {
-        width: 100%;
-        height: 100%;
-        background-color: #000000;
-        overflow: hidden; /* يمنع ظهور أي أشرطة تمرير مزعجة */
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
-
-    /* الحاوية الرئيسية للصورة مع تفاعل الحركة */
-    #main-container {
-        position: absolute;
-        width: 110vw; /* حجم أكبر بقليل لضمان مساحة لحركة الـ 3D */
-        height: 110vh;
-        top: -5vh;
-        left: -5vw;
-        background-image: url('191.jpg'); /* صورتك الأصلية */
-        background-size: cover;
-        background-position: center;
-        background-repeat: no-repeat;
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ilya | Premium Interface</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #030000;
+            font-family: 'Inter', sans-serif;
+        }
         
-        /* تأثير الدخول السينمائي */
-        filter: brightness(0) contrast(1.2) blur(10px);
-        animation: revealScene 4s 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
-        transition: transform 0.1s ease-out; /* نعومة حركة الماوس */
-    }
+        /* طبقة الـ Canvas الحقيقية (WebGL) */
+        #webgl-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+        }
 
-    /* طبقة الظلال لجعل التركيز على المنتصف */
-    .vignette {
-        position: absolute;
-        width: 100%;
-        height: 100%;
-        top: 0;
-        left: 0;
-        background: radial-gradient(circle, rgba(0,0,0,0) 40%, rgba(0,0,0,0.8) 120%);
-        pointer-events: none;
-        z-index: 5;
-    }
+        /* طبقة الواجهة الزجاجية للفيديو */
+        .ui-layer {
+            position: relative;
+            z-index: 2;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            pointer-events: none; /* السماح بالتفاعل مع الخلفية */
+            padding: 20px;
+            box-sizing: border-box;
+        }
 
-    /* حاوية جزيئات النيون المتطايرة */
-    .particles-container {
-        position: absolute;
-        width: 100%;
-        height: 100%;
-        top: 0;
-        left: 0;
-        pointer-events: none;
-        z-index: 10;
-    }
+        /* حاوية الفيديو الأفقية المتميزة */
+        .video-wrapper {
+            position: relative;
+            width: 100%;
+            max-width: 1200px;
+            aspect-ratio: 16 / 9; /* الحفاظ على الشكل الأفقي دائماً */
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 0 50px rgba(255, 20, 147, 0.4), inset 0 0 20px rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 105, 180, 0.3);
+            backdrop-filter: blur(10px); /* تأثير الزجاج */
+            pointer-events: auto; /* السماح بالتفاعل مع الفيديو إذا لزم الأمر */
+            opacity: 0;
+            transform: scale(0.95);
+        }
 
-    .particle {
-        position: absolute;
-        border-radius: 50%;
-        opacity: 0;
-        animation: floatUp var(--duration) infinite ease-in-out var(--delay);
-        mix-blend-mode: screen; /* لدمج الضوء مع الخلفية بشكل واقعي */
-    }
-
-    /* التأثير التكنولوجي الخفيف (الشاشات الرقمية) */
-    .tech-overlay {
-        position: absolute;
-        width: 100%;
-        height: 100%;
-        top: 0;
-        left: 0;
-        background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.15) 50%);
-        background-size: 100% 4px;
-        pointer-events: none;
-        z-index: 20;
-        opacity: 0;
-        animation: fadeInOverlay 3s 3s forwards;
-    }
-
-    /* --- الحركات (Animations) --- */
-    
-    /* حركة ظهور العالم */
-    @keyframes revealScene {
-        0% { filter: brightness(0) blur(20px); transform: scale(1.1); }
-        50% { filter: brightness(0.6) blur(5px); }
-        100% { filter: brightness(1) blur(0px); transform: scale(1); }
-    }
-
-    /* حركة الجزيئات المتطايرة */
-    @keyframes floatUp {
-        0% { transform: translateY(110vh) scale(0.5); opacity: 0; }
-        20% { opacity: 0.8; }
-        80% { opacity: 0.5; }
-        100% { transform: translateY(-10vh) scale(1.5); opacity: 0; }
-    }
-
-    /* ظهور التأثير التكنولوجي */
-    @keyframes fadeInOverlay {
-        to { opacity: 1; }
-    }
-
-</style>
+        .main-video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 20px;
+        }
+    </style>
 </head>
 <body>
 
-    <div id="main-container"></div>
-    
-    <div class="vignette"></div>
-    <div class="tech-overlay"></div>
-    <div class="particles-container" id="particles"></div>
+    <canvas id="webgl-canvas"></canvas>
+
+    <div class="ui-layer">
+        <div class="video-wrapper">
+            <video src="video.mp4" class="main-video" autoplay loop muted playsinline></video>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
 
     <script>
-        // سكربت توليد جزيئات النيون (وردي وأحمر داكن)
-        const container = document.getElementById('particles');
-        const particleCount = 80; // عدد الجزيئات
+        // 1. إعداد بيئة Three.js
+        const canvas = document.getElementById('webgl-canvas');
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x050005, 0.0015);
 
-        for(let i = 0; i < particleCount; i++) {
-            let p = document.createElement('div');
-            p.classList.add('particle');
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+        
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+        // 2. تصميم زهرة اللوتس برمجياً بدقة فائقة (بدون ملفات خارجية)
+        const lotusSVG = `
+            <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>
+                <defs>
+                    <radialGradient id='g' cx='50%' cy='100%' r='100%'>
+                        <stop offset='0%' stop-color='#ffffff'/>
+                        <stop offset='40%' stop-color='#ff69b4'/>
+                        <stop offset='100%' stop-color='#ff1493'/>
+                    </radialGradient>
+                    <filter id='f' x='-20%' y='-20%' width='140%' height='140%'>
+                        <feGaussianBlur stdDeviation='2' result='b'/>
+                        <feComposite in='SourceGraphic' in2='b' operator='over'/>
+                    </filter>
+                </defs>
+                <g filter='url(#f)'>
+                    <path d='M50,90 C30,70 10,60 10,40 C10,25 25,20 50,50 C75,20 90,25 90,40 C90,60 70,70 50,90 Z' fill='url(#g)' opacity='0.7'/>
+                    <path d='M50,90 C35,75 20,60 20,45 C20,30 35,25 50,60 C65,25 80,30 80,45 C80,60 65,75 50,90 Z' fill='url(#g)' opacity='0.9'/>
+                    <path d='M50,90 C40,70 35,50 35,35 C35,20 45,15 50,15 C55,15 65,20 65,35 C65,50 60,70 50,90 Z' fill='url(#g)'/>
+                </g>
+            </svg>
+        `;
+        const blob = new Blob([lotusSVG], {type: 'image/svg+xml'});
+        const lotusUrl = URL.createObjectURL(blob);
+        const textureLoader = new THREE.TextureLoader();
+        const lotusTexture = textureLoader.load(lotusUrl);
+
+        // 3. نظام أزهار اللوتس (الرؤوس)
+        const lotusCount = 120;
+        const lotusGeo = new THREE.BufferGeometry();
+        const lotusPosArray = new Float32Array(lotusCount * 3);
+        const lotusData = []; // لحفظ سرعة واتجاه كل زهرة
+
+        for(let i = 0; i < lotusCount; i++) {
+            let x = (Math.random() - 0.5) * 30;
+            let y = (Math.random() - 0.5) * 30;
+            let z = (Math.random() - 0.5) * 15 - 5;
             
-            // خصائص عشوائية لكل جزيء ليكون المظهر طبيعياً
-            let size = Math.random() * 6 + 2; // الحجم
-            let left = Math.random() * 100; // الموقع الأفقي
-            let duration = Math.random() * 12 + 6; // سرعة الطيران
-            let delay = Math.random() * 5; // وقت البدء
+            lotusPosArray[i*3] = x;
+            lotusPosArray[i*3+1] = y;
+            lotusPosArray[i*3+2] = z;
 
-            p.style.width = size + 'px';
-            p.style.height = size + 'px';
-            p.style.left = left + '%';
-            p.style.setProperty('--duration', duration + 's');
-            p.style.setProperty('--delay', delay + 's');
-            
-            // تنويع الألوان بين الوردي الفاتح النيوني والأحمر الداكن
-            if(Math.random() > 0.5) {
-                p.style.background = 'radial-gradient(circle, #ff1493 0%, rgba(255, 20, 147, 0) 70%)'; // وردي
-                p.style.boxShadow = '0 0 10px #ff1493';
-            } else {
-                p.style.background = 'radial-gradient(circle, #ff0033 0%, rgba(255, 0, 51, 0) 70%)'; // أحمر
-                p.style.boxShadow = '0 0 10px #ff0033';
-            }
-
-            container.appendChild(p);
+            lotusData.push({
+                vel: new THREE.Vector3((Math.random() - 0.5) * 0.01, Math.random() * 0.02 + 0.01, (Math.random() - 0.5) * 0.01)
+            });
         }
 
-        // سكربت التفاعل مع حركة الماوس لجعل الصورة 3D
-        const mainContainer = document.getElementById('main-container');
-        
-        document.addEventListener('mousemove', (e) => {
-            // حساب مكان الماوس بالنسبة لمركز الشاشة
-            const x = (e.clientX / window.innerWidth - 0.5) * 20; 
-            const y = (e.clientY / window.innerHeight - 0.5) * 20;
-            
-            // تحريك الصورة عكس اتجاه الماوس ببطء
-            requestAnimationFrame(() => {
-                mainContainer.style.transform = `translate(${-x}px, ${-y}px) scale(1.02)`;
-            });
+        lotusGeo.setAttribute('position', new THREE.BufferAttribute(lotusPosArray, 3));
+
+        const lotusMaterial = new THREE.PointsMaterial({
+            size: 1.5,
+            map: lotusTexture,
+            transparent: true,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending
         });
 
-        // دعم الحركة للموبايل عند لمس وتحريك الإصبع على الشاشة
-        document.addEventListener('touchmove', (e) => {
-            if(e.touches.length > 0) {
-                const touch = e.touches[0];
-                const x = (touch.clientX / window.innerWidth - 0.5) * 15;
-                const y = (touch.clientY / window.innerHeight - 0.5) * 15;
+        const lotusMesh = new THREE.Points(lotusGeo, lotusMaterial);
+        scene.add(lotusMesh);
+
+        // 4. نظام الذيل الدخاني الواقعي (Custom Shader)
+        const maxSmoke = 8000;
+        let smokeIdx = 0;
+        const smokeGeo = new THREE.BufferGeometry();
+        const smokePosArray = new Float32Array(maxSmoke * 3);
+        const smokeAgeArray = new Float32Array(maxSmoke); // للتحكم باختفاء الدخان
+
+        smokeGeo.setAttribute('position', new THREE.BufferAttribute(smokePosArray, 3));
+        smokeGeo.setAttribute('age', new THREE.BufferAttribute(smokeAgeArray, 1));
+
+        const smokeMaterial = new THREE.ShaderMaterial({
+            uniforms: {
+                color: { value: new THREE.Color(0xff69b4) } // وردي فاتح للدخان
+            },
+            vertexShader: `
+                attribute float age;
+                varying float vAge;
+                void main() {
+                    vAge = age;
+                    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                    gl_PointSize = 40.0 * (1.0 - age) * (10.0 / -mvPosition.z); // الدخان يكبر كلما ابتعد
+                    gl_Position = projectionMatrix * mvPosition;
+                }
+            `,
+            fragmentShader: `
+                uniform vec3 color;
+                varying float vAge;
+                void main() {
+                    if (vAge <= 0.0) discard;
+                    
+                    // رسم دائرة ناعمة برمجياً تمثل الدخان
+                    vec2 pt = gl_PointCoord - vec2(0.5);
+                    float r = length(pt);
+                    if(r > 0.5) discard;
+                    
+                    // تدرج الاختفاء
+                    float alpha = (0.5 - r) * vAge * 0.4;
+                    gl_FragColor = vec4(color, alpha);
+                }
+            `,
+            transparent: true,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending
+        });
+
+        const smokeMesh = new THREE.Points(smokeGeo, smokeMaterial);
+        scene.add(smokeMesh);
+
+        camera.position.z = 5;
+
+        // 5. حركة الكاميرا والماوس
+        let mouseX = 0, mouseY = 0, targetX = 0, targetY = 0;
+        const windowHalfX = window.innerWidth / 2;
+        const windowHalfY = window.innerHeight / 2;
+
+        document.addEventListener('mousemove', (event) => {
+            mouseX = (event.clientX - windowHalfX);
+            mouseY = (event.clientY - windowHalfY);
+        });
+
+        // 6. محرك الحركة والتصيير (Render Loop)
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // تحديث حركة أزهار اللوتس وإصدار الدخان
+            for(let i = 0; i < lotusCount; i++) {
+                let d = lotusData[i];
                 
-                requestAnimationFrame(() => {
-                    mainContainer.style.transform = `translate(${-x}px, ${-y}px) scale(1.02)`;
-                });
+                // تحديث موقع الزهرة
+                lotusPosArray[i*3] += d.vel.x;
+                lotusPosArray[i*3+1] += d.vel.y;
+                lotusPosArray[i*3+2] += d.vel.z;
+
+                // إعادة الزهرة للأسفل إذا تجاوزت الشاشة
+                if(lotusPosArray[i*3+1] > 15) {
+                    lotusPosArray[i*3+1] = -15;
+                    lotusPosArray[i*3] = (Math.random() - 0.5) * 30;
+                }
+
+                // إصدار نقطة دخان خلف الزهرة
+                smokePosArray[smokeIdx*3] = lotusPosArray[i*3];
+                smokePosArray[smokeIdx*3+1] = lotusPosArray[i*3+1] - 0.2; // أسفل الزهرة بقليل
+                smokePosArray[smokeIdx*3+2] = lotusPosArray[i*3+2];
+                smokeAgeArray[smokeIdx] = 1.0; // عمر الدخان يبدأ من 1 وينزل للصفر
+                
+                smokeIdx = (smokeIdx + 1) % maxSmoke;
             }
+            lotusGeo.attributes.position.needsUpdate = true;
+
+            // تحديث حركة وفيزياء الدخان
+            for(let i = 0; i < maxSmoke; i++) {
+                if(smokeAgeArray[i] > 0) {
+                    smokeAgeArray[i] -= 0.015; // سرعة اختفاء الدخان
+                    smokePosArray[i*3+1] += 0.005; // الدخان يرتفع ببطء
+                    smokePosArray[i*3] += (Math.random() - 0.5) * 0.01; // تشتت جانبي طبيعي للدخان
+                }
+            }
+            smokeGeo.attributes.position.needsUpdate = true;
+            smokeGeo.attributes.age.needsUpdate = true;
+
+            // حركة الكاميرا التفاعلية
+            targetX = mouseX * 0.001;
+            targetY = mouseY * 0.001;
+            camera.rotation.x += 0.05 * (targetY - camera.rotation.x);
+            camera.rotation.y += 0.05 * (targetX - camera.rotation.y);
+
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // 7. دخول احترافي للفيديو (GSAP)
+        gsap.to(".video-wrapper", {
+            duration: 2.5,
+            scale: 1,
+            opacity: 1,
+            ease: "power4.out",
+            delay: 0.5
+        });
+
+        // 8. التجاوب التلقائي مع حجم الشاشة (Responsive)
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
         });
     </script>
 </body>
