@@ -3,16 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Ilya | Cinematic Flee Engine</title>
+    <title>Ilya | Deep Space Neon Interface</title>
+    <link rel="preload" as="video" href="video.mp4">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
             margin: 0;
             padding: 0;
             overflow: hidden;
-            background-color: #020005;
+            background-color: #010002; /* أسود فضائي عميق */
             font-family: 'Inter', sans-serif;
-            cursor: pointer; /* لإعطاء إيحاء بالتفاعل */
+            touch-action: none; /* منع التمرير الافتراضي لدعم اللمس بسلاسة */
         }
         
         #webgl-canvas {
@@ -33,27 +34,32 @@
             justify-content: center;
             align-items: center;
             pointer-events: none; 
+            padding: 20px;
+            box-sizing: border-box;
+            perspective: 1000px; /* لتمكين الحركة ثلاثية الأبعاد للواجهة */
         }
 
         .video-wrapper {
             position: relative;
-            width: 90%;
-            max-width: 950px; 
+            width: 100%;
+            max-width: 1000px; 
             aspect-ratio: 16 / 9; 
-            border-radius: 30px;
+            border-radius: 24px;
             overflow: hidden;
-            box-shadow: 0 0 70px rgba(255, 20, 147, 0.3);
-            border: 1px solid rgba(255, 20, 147, 0.2);
-            backdrop-filter: blur(20px); 
-            transform: scale(0.9);
+            box-shadow: 0 0 60px rgba(255, 0, 51, 0.4), inset 0 0 30px rgba(255, 20, 147, 0.3);
+            border: 1px solid rgba(255, 20, 147, 0.4);
+            backdrop-filter: blur(15px); 
+            pointer-events: auto; 
             opacity: 0;
+            /* سيتم التحكم بموقعه عبر GSAP ليلحق بالكاميرا */
         }
 
         .main-video {
             width: 100%;
             height: 100%;
             object-fit: cover;
-            pointer-events: none;
+            border-radius: 24px;
+            background-color: #050005; 
         }
     </style>
 </head>
@@ -62,8 +68,8 @@
     <canvas id="webgl-canvas"></canvas>
 
     <div class="ui-layer">
-        <div class="video-wrapper" id="vidBox">
-            <video src="video.mp4" class="main-video" autoplay loop muted playsinline fetchpriority="high"></video>
+        <div class="video-wrapper" id="vidContainer">
+            <video src="video.mp4" class="main-video" autoplay loop muted playsinline preload="auto"></video>
         </div>
     </div>
 
@@ -71,202 +77,290 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
 
     <script>
-        // 1. الأساسيات
+        // 1. إعداد المشهد
+        const canvas = document.getElementById('webgl-canvas');
         const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x010002, 0.012); 
+
         const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000);
-        const renderer = new THREE.WebGLRenderer({ 
-            canvas: document.getElementById('webgl-canvas'), 
-            antialias: true, 
-            alpha: true 
-        });
+        camera.position.z = 30;
+
+        const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-        // 2. تصميم "زهرة نيون واقعية" بدون تشوه
-        function createHighResFlower() {
-            const size = 256; // دقة عالية جداً لمنع المربعات
-            const canvas = document.createElement('canvas');
-            canvas.width = size;
-            canvas.height = size;
-            const ctx = canvas.getContext('2d');
-            const c = size / 2;
+        // 2. تصميم خلفية الفضاء الواقعي (نجوم ساطعة وبعيدة)
+        const starGeo = new THREE.BufferGeometry();
+        const starCount = 6000; // عدد هائل من النجوم
+        const starPos = new Float32Array(starCount * 3);
+        const starColors = new Float32Array(starCount * 3);
 
-            // توهج داخلي ناعم جداً
-            const grad = ctx.createRadialGradient(c, c, 0, c, c, c);
-            grad.addColorStop(0, 'rgba(255, 255, 255, 1)');
-            grad.addColorStop(0.2, 'rgba(255, 20, 147, 0.8)');
-            grad.addColorStop(0.5, 'rgba(255, 0, 51, 0.2)');
-            grad.addColorStop(1, 'rgba(0,0,0,0)');
-            
-            ctx.fillStyle = grad;
-            ctx.fillRect(0,0, size, size);
+        for(let i = 0; i < starCount; i++) {
+            // توزيع كروي واسع جداً لإعطاء إحساس اللانهاية
+            starPos[i*3] = (Math.random() - 0.5) * 400;
+            starPos[i*3+1] = (Math.random() - 0.5) * 400;
+            starPos[i*3+2] = (Math.random() - 0.5) * 400;
 
-            // رسم البتلات بدقة
-            ctx.translate(c, c);
-            ctx.shadowBlur = 15;
-            ctx.shadowColor = "#ff1493";
-            for(let i=0; i<8; i++){
-                ctx.rotate(Math.PI/4);
-                ctx.beginPath();
-                ctx.ellipse(0, 30, 12, 50, 0, 0, Math.PI*2);
-                ctx.fillStyle = 'rgba(255, 20, 147, 0.5)';
-                ctx.fill();
-            }
-            return new THREE.CanvasTexture(canvas);
+            // تنويع ألوان النجوم (أبيض، مزرق، وردي خفيف)
+            let starType = Math.random();
+            let r = 1, g = 1, b = 1;
+            if(starType > 0.8) { r = 1; g = 0.8; b = 0.9; } // نجوم مائلة للوردي
+            else if(starType > 0.6) { r = 0.8; g = 0.9; b = 1; } // نجوم مائلة للأزرق
+
+            starColors[i*3] = r;
+            starColors[i*3+1] = g;
+            starColors[i*3+2] = b;
         }
 
-        const flowerTexture = createHighResFlower();
+        starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+        starGeo.setAttribute('color', new THREE.BufferAttribute(starColors, 3));
 
-        // 3. نظام الجزيئات (الأزهار والذيل)
-        const count = 300;
-        const trailLen = 25;
-        const flowers = [];
-        const headPos = new Float32Array(count * 3);
-        const trailPos = new Float32Array(count * trailLen * 3);
-        const trailAge = new Float32Array(count * trailLen);
+        const starMat = new THREE.PointsMaterial({
+            size: 0.4,
+            vertexColors: true,
+            transparent: true,
+            opacity: 0.8,
+            sizeAttenuation: true
+        });
+        const starsMesh = new THREE.Points(starGeo, starMat);
+        scene.add(starsMesh);
 
-        for(let i=0; i<count; i++) {
-            flowers.push({
-                x: (Math.random()-0.5)*120,
-                y: (Math.random()-0.5)*120,
-                z: (Math.random()-0.5)*100 - 50,
-                vel: Math.random() * 0.05 + 0.02,
-                sineIdx: Math.random() * Math.PI * 2
+        // 3. تحسين شكل الزهرة برمجياً لتكون أدق وأجمل
+        function createGlowingFlowerTexture() {
+            const size = 128;
+            const canvasObj = document.createElement('canvas');
+            canvasObj.width = size;
+            canvasObj.height = size;
+            const ctx = canvasObj.getContext('2d');
+            const center = size / 2;
+
+            // توهج أعمق
+            const gradient = ctx.createRadialGradient(center, center, 0, center, center, center);
+            gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+            gradient.addColorStop(0.15, 'rgba(255, 20, 147, 1)'); 
+            gradient.addColorStop(0.5, 'rgba(255, 0, 51, 0.4)');  
+            gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, size, size);
+
+            // بتلات أكثر دقة ووضوحاً
+            ctx.translate(center, center);
+            for(let i = 0; i < 8; i++) { // 8 بتلات بدلاً من 6 لشكل أكثر اكتمالاً
+                ctx.rotate((Math.PI * 2) / 8);
+                ctx.beginPath();
+                ctx.ellipse(0, 18, 5, 28, 0, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255, 105, 180, 0.7)';
+                ctx.fill();
+            }
+            return new THREE.CanvasTexture(canvasObj);
+        }
+
+        function createSoftGlowTexture() {
+            const canvasObj = document.createElement('canvas');
+            canvasObj.width = 64;
+            canvasObj.height = 64;
+            const ctx = canvasObj.getContext('2d');
+            const gradient = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+            gradient.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+            gradient.addColorStop(0.3, 'rgba(255, 20, 147, 0.6)');
+            gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, 64, 64);
+            return new THREE.CanvasTexture(canvasObj);
+        }
+
+        const flowerTex = createGlowingFlowerTexture();
+        const glowTex = createSoftGlowTexture();
+
+        // 4. نظام الأزهار والذيل الدخاني (زيادة طول الذيل)
+        const flowerCount = 350; 
+        const trailLength = 28;  // تم زيادة طول الذيل بشكل ملحوظ
+        
+        const flowersData = [];
+        const headPositions = new Float32Array(flowerCount * 3);
+        const trailPositions = new Float32Array(flowerCount * trailLength * 3);
+        const trailAges = new Float32Array(flowerCount * trailLength);
+
+        for(let i = 0; i < flowerCount; i++) {
+            let startX = (Math.random() - 0.5) * 80; // انتشار أوسع في الفضاء
+            let startY = (Math.random() - 0.5) * 80;
+            let startZ = (Math.random() - 0.5) * 50 - 10;
+
+            flowersData.push({
+                x: startX, y: startY, z: startZ,
+                speedY: Math.random() * 0.04 + 0.02,
+                angleX: Math.random() * Math.PI * 2,
+                angleY: Math.random() * Math.PI * 2,
+                radius: Math.random() * 2.0 + 0.5,
+                swaySpeed: Math.random() * 0.02 + 0.01
             });
+
+            for(let j = 0; j < trailLength; j++) {
+                let idx = (i * trailLength + j) * 3;
+                trailPositions[idx] = startX;
+                trailPositions[idx+1] = startY;
+                trailPositions[idx+2] = startZ;
+                trailAges[i * trailLength + j] = j / trailLength; 
+            }
         }
 
         const headGeo = new THREE.BufferGeometry();
-        headGeo.setAttribute('position', new THREE.BufferAttribute(headPos, 3));
+        headGeo.setAttribute('position', new THREE.BufferAttribute(headPositions, 3));
         const headMat = new THREE.PointsMaterial({
-            size: 4, 
-            map: flowerTexture, 
-            transparent: true, 
-            blending: THREE.AdditiveBlending, 
-            depthWrite: false 
+            size: 2.5, 
+            map: flowerTex,
+            transparent: true,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending
         });
         const headMesh = new THREE.Points(headGeo, headMat);
         scene.add(headMesh);
 
-        // ذيل دخاني طويل
         const trailGeo = new THREE.BufferGeometry();
-        trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPos, 3));
+        trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPositions, 3));
+        trailGeo.setAttribute('age', new THREE.BufferAttribute(trailAges, 1));
+
         const trailMat = new THREE.ShaderMaterial({
             uniforms: {
-                color1: { value: new THREE.Color(0xff1493) },
-                color2: { value: new THREE.Color(0xff0033) }
+                tex: { value: glowTex },
+                colorPink: { value: new THREE.Color(0xff1493) }, 
+                colorRed: { value: new THREE.Color(0xff0033) }   
             },
             vertexShader: `
                 attribute float age;
                 varying float vAge;
                 void main() {
                     vAge = age;
-                    vec4 mvPos = modelViewMatrix * vec4(position, 1.0);
-                    gl_PointSize = (20.0 * (1.0 - age)) * (50.0 / -mvPos.z);
-                    gl_Position = projectionMatrix * mvPos;
+                    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                    // ذيل أعرض قليلاً
+                    gl_PointSize = (35.0 * (1.0 - age)) * (20.0 / -mvPosition.z);
+                    gl_Position = projectionMatrix * mvPosition;
                 }
             `,
             fragmentShader: `
-                uniform vec3 color1;
-                uniform vec3 color2;
+                uniform sampler2D tex;
+                uniform vec3 colorPink;
+                uniform vec3 colorRed;
                 varying float vAge;
                 void main() {
-                    float r = length(gl_PointCoord - vec2(0.5));
-                    if(r > 0.5) discard;
-                    vec3 col = mix(color1, color2, vAge);
-                    gl_FragColor = vec4(col, (0.5 - r) * (1.0 - vAge) * 0.8);
+                    vec4 texColor = texture2D(tex, gl_PointCoord);
+                    vec3 finalColor = mix(colorPink, colorRed, vAge);
+                    float alpha = (1.0 - vAge) * texColor.a * 0.7; // وضوح أعلى للذيل
+                    gl_FragColor = vec4(finalColor, alpha);
                 }
             `,
-            transparent: true, blending: THREE.AdditiveBlending, depthWrite: false
+            transparent: true,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending
         });
-
-        // توزيع الأعمار للذيل
-        for(let i=0; i<count; i++) {
-            for(let j=0; j<trailLen; j++) trailAge[i*trailLen + j] = j/trailLen;
-        }
-        trailGeo.setAttribute('age', new THREE.BufferAttribute(trailAge, 1));
         const trailMesh = new THREE.Points(trailGeo, trailMat);
         scene.add(trailMesh);
 
-        // 4. نظام "الهروب عند الضغط" (Flee Logic)
-        camera.position.z = 80;
-        let targetY = 0;
-        let currentY = 0;
+        // 5. التفاعل المتقدم (يدعم اللمس على الأجهزة بقوة) لإحساس الفضاء اللانهائي
+        let targetCamX = 0, targetCamY = 0;
+        let isInteracting = false;
 
-        window.addEventListener('mousedown', (e) => {
-            const normalizedY = (e.clientY / window.innerHeight) * 2 - 1; // -1 (top) to 1 (bottom)
+        // دالة موحدة للماوس واللمس
+        function onPointerMove(event) {
+            isInteracting = true;
+            // حساب الإحداثيات بالنسبة للشاشة (من -1 إلى 1)
+            let clientX = event.touches ? event.touches[0].clientX : event.clientX;
+            let clientY = event.touches ? event.touches[0].clientY : event.clientY;
             
-            // إذا ضغط فوق (Y < 0)، اهرب للأسفل (Target Y إيجابي للكاميرا لترى الأسفل)
-            // إذا ضغط تحت (Y > 0)، اهرب للأعلى
-            const fleeDistance = 45;
-            targetY = normalizedY < 0 ? -fleeDistance : fleeDistance;
+            let normX = (clientX / window.innerWidth) * 2 - 1;
+            let normY = -(clientY / window.innerHeight) * 2 + 1;
 
-            // تأثير اهتزاز خفيف للفيديو لإعطاء إحساس القوة
-            gsap.to("#vidBox", {
-                y: normalizedY < 0 ? 20 : -20,
-                duration: 0.1,
-                yoyo: true,
-                repeat: 1
+            // 1. حركة الكاميرا: مسافة كبيرة جداً لتعطي إحساس الفضاء (تم مضاعفة الرقم)
+            targetCamX = normX * 25; 
+            targetCamY = normY * 25;
+
+            // 2. حركة الفيديو (شبه ثابت ويلحق الكاميرا بنعومة - Parallax)
+            gsap.to("#vidContainer", {
+                x: normX * 30,       // يتحرك قليلاً ليلحق الحركة
+                y: -normY * 30,
+                rotationY: normX * 5, // دوران 3D خفيف
+                rotationX: normY * 5,
+                duration: 1.5,
+                ease: "power2.out"
             });
-        });
+        }
 
-        // 5. حلقة التحريك (Loop)
+        window.addEventListener('pointermove', onPointerMove);
+        window.addEventListener('touchmove', onPointerMove, { passive: true }); // للأجهزة بقوة
+
+        // 6. محرك الحركة (Render Loop)
         let time = 0;
         function animate() {
             requestAnimationFrame(animate);
-            time += 0.015;
+            time += 0.01;
 
-            // تحريك الأزهار والذيل
-            for(let i=0; i<count; i++) {
-                let f = flowers[i];
-                f.y += f.vel;
-                if(f.y > 60) f.y = -60;
+            // دوران خلفية النجوم ببطء شديد
+            starsMesh.rotation.y = time * 0.05;
+            starsMesh.rotation.x = time * 0.02;
 
-                let x = f.x + Math.sin(time + f.sineIdx) * 5;
-                let y = f.y;
-                let z = f.z;
+            const hPos = headGeo.attributes.position.array;
+            const tPos = trailGeo.attributes.position.array;
 
-                headPos[i*3] = x;
-                headPos[i*3+1] = y;
-                headPos[i*3+2] = z;
-
-                // تحديث الذيل
-                for(let j=trailLen-1; j>0; j--) {
-                    let idx = (i*trailLen + j)*3;
-                    let prev = (i*trailLen + j-1)*3;
-                    trailPos[idx] = trailPos[prev];
-                    trailPos[idx+1] = trailPos[prev+1];
-                    trailPos[idx+2] = trailPos[prev+2];
+            for(let i = 0; i < flowerCount; i++) {
+                let d = flowersData[i];
+                
+                d.y += d.speedY;
+                if(d.y > 40) { 
+                    d.y = -40; 
+                    d.x = (Math.random() - 0.5) * 80;
                 }
-                trailPos[(i*trailLen)*3] = x;
-                trailPos[(i*trailLen)*3+1] = y;
-                trailPos[(i*trailLen)*3+2] = z;
+
+                let currentX = d.x + Math.sin(d.angleX + time * d.swaySpeed) * d.radius;
+                let currentY = d.y + Math.cos(d.angleY + time * d.swaySpeed) * (d.radius * 0.5);
+                let currentZ = d.z;
+
+                hPos[i*3] = currentX;
+                hPos[i*3+1] = currentY;
+                hPos[i*3+2] = currentZ;
+
+                for(let j = trailLength - 1; j > 0; j--) {
+                    let currIdx = (i * trailLength + j) * 3;
+                    let prevIdx = (i * trailLength + j - 1) * 3;
+                    tPos[currIdx] = tPos[prevIdx];
+                    tPos[currIdx+1] = tPos[prevIdx+1];
+                    tPos[currIdx+2] = tPos[prevIdx+2];
+                }
+                
+                let firstIdx = (i * trailLength) * 3;
+                tPos[firstIdx] = currentX;
+                tPos[firstIdx+1] = currentY - 0.2;
+                tPos[firstIdx+2] = currentZ;
             }
 
             headGeo.attributes.position.needsUpdate = true;
             trailGeo.attributes.position.needsUpdate = true;
 
-            // تطبيق نظام الهروب السلس للكاميرا
-            currentY += (targetY - currentY) * 0.05; // سرعة الهروب
-            targetY *= 0.96; // العودة التدريجية للمركز (القصور الذاتي)
-
-            camera.position.y = currentY;
-            camera.lookAt(0, 0, 0);
-
-            // تحريك الفيديو بشكل طفيف جداً ليلحق بالكاميرا (Parallax)
-            gsap.to("#vidBox", {
-                y: -currentY * 0.5,
-                duration: 0.5
-            });
-
+            // حركة الكاميرا بنعومة وانسيابية نحو الهدف المطلوب
+            if (isInteracting) {
+                camera.position.x += (targetCamX - camera.position.x) * 0.03;
+                camera.position.y += (targetCamY - camera.position.y) * 0.03;
+            } else {
+                // حركة تلقائية هادئة إذا لم يكن هناك تفاعل
+                camera.position.x = Math.sin(time * 0.5) * 5;
+                camera.position.y = Math.cos(time * 0.5) * 5;
+            }
+            
+            camera.lookAt(scene.position);
             renderer.render(scene, camera);
         }
-
         animate();
 
-        // دخول الفيديو
-        gsap.to("#vidBox", { opacity: 1, scale: 1, duration: 2, ease: "expo.out", delay: 0.5 });
+        // 7. دخول احترافي لواجهة الفيديو
+        gsap.to(".video-wrapper", {
+            duration: 2.5,
+            scale: 1,
+            opacity: 1,
+            ease: "expo.out",
+            delay: 0.5
+        });
 
-        // التجاوب مع الشاشة
+        // 8. الاستجابة لحجم الشاشة
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
